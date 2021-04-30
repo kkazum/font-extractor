@@ -3,8 +3,10 @@
  *
  * Visit http://adobexdplatform.com/ for API docs and more sample code.
  */
+const { alert, error } = require('./lib/dialogs.js');
+const clipboard = require('clipboard');
 
-const textArr = [];
+let textArr = [];
 
 const addText = (child) => {
   const {
@@ -55,36 +57,56 @@ const searchText = (arr) => {
 };
 
 const myCommand = (selection, root) => {
-  const artBoards = [];
-  root.children.forEach((childNode) => {
-    if (childNode.constructor.name == 'Artboard') artBoards.push(childNode);
-  });
-  artBoards.forEach((childNode) => {
-    searchText(childNode);
-  });
-  const groupedText = groupBy(textArr, 'font');
-  console.log(Object.keys(groupedText).length);
-  Object.keys(groupedText).forEach((ele) => {
-    const { fontSize, letterSpacing, lineHeight } = JSON.parse(ele);
-    console.log(
-      `
-			.text${fontSize}_${letterSpacing}_${lineHeight} {
-				font-size: ${fontSize}px;
-				letter-spacing: ${letterSpacing}em;
-				line-height: ${lineHeight};
-			}
-			`
+  textArr = [];
+  try {
+    if (selection.items[0].constructor.name == 'Artboard') {
+      let artBoard = selection.items[0];
+      searchText(artBoard);
+    } else {
+      error(
+        "First item of selection isn't 'Artboard'. ",
+        'アートボードを1つ選択してください。'
+      );
+      return;
+    }
+    const groupedText = groupBy(textArr, 'font');
+
+    //extract all font data from an artboard and convert it to css format
+    const cssArr = Object.keys(groupedText).reduce((acc, cur) => {
+      const { fontSize, letterSpacing, lineHeight } = JSON.parse(cur);
+      acc.push(
+        `
+.text${fontSize}_${letterSpacing}_${lineHeight} {
+  font-size: ${fontSize}px;
+  letter-spacing: ${letterSpacing}em;
+  line-height: ${lineHeight};
+}
+`
+      );
+      return acc;
+    }, []);
+
+    //extract all font data from an artboard and genarate html tag
+    const htmlArr = []
+    Object.keys(groupedText).forEach((ele) => {
+      const { fontSize, letterSpacing, lineHeight } = JSON.parse(ele);
+      const tagArr = groupedText[ele].reduce((acc, cur) => {
+        acc.push(
+          `<p class="text${fontSize}_${letterSpacing}_${lineHeight}">${cur.text}</p>`
+        );
+        return acc;
+      }, []);
+      htmlArr.push(`\n${tagArr.join(',').replace(/,/g, '\n')}\n`);
+    });
+    clipboard.copyText(`${cssArr.join(',').replace(/,/g, '')}\n\n\n\n\n${htmlArr.join(',').replace(/,/g, '\n')}`);
+  } catch (e) {
+    error(
+      "First item of selection isn't 'Artboard'. ",
+      'アートボードを1つ選択してください。',
+      e
     );
-		groupedText[ele].forEach((child) => {
-			console.log(
-				`
-				<p class="text${fontSize}_${letterSpacing}_${lineHeight}">${child.text}</p>
-				`
-			);
-		})
-    console.log(groupedText[ele].length);
-    console.log('----------------------------------');
-  });
+    return;
+  }
 };
 
 module.exports = {
