@@ -3,11 +3,11 @@
  *
  * Visit http://adobexdplatform.com/ for API docs and more sample code.
  */
-const { alert, error } = require('./lib/dialogs.js');
+const { error } = require('./lib/dialogs.js');
 const clipboard = require('clipboard');
-
 let textArr = [];
 
+//add "Text" obj to arr
 const addText = (child) => {
   const {
     text,
@@ -33,6 +33,7 @@ const addText = (child) => {
   });
 };
 
+//create unique obj
 const groupBy = (objectArray, property) => {
   return objectArray.reduce((acc, obj) => {
     let key = JSON.stringify(obj[property]);
@@ -44,6 +45,7 @@ const groupBy = (objectArray, property) => {
   }, {});
 };
 
+//search "Text" recursively
 const searchText = (arr) => {
   arr.children.forEach((childNode, i) => {
     if (childNode.constructor.name == 'Text') {
@@ -56,12 +58,13 @@ const searchText = (arr) => {
   });
 };
 
-const myCommand = (selection, root) => {
+//function for launch
+const myCommand = (selection) => {
   textArr = [];
+  const firstItem = selection.items[0];
   try {
-    if (selection.items[0].constructor.name == 'Artboard') {
-      let artBoard = selection.items[0];
-      searchText(artBoard);
+    if (firstItem.constructor.name == 'Artboard') {
+      searchText(firstItem);
     } else {
       error(
         "First item of selection isn't 'Artboard'. ",
@@ -74,12 +77,18 @@ const myCommand = (selection, root) => {
     //extract all font data from an artboard and convert it to css format
     const cssArr = Object.keys(groupedText).reduce((acc, cur) => {
       const { fontSize, letterSpacing, lineHeight } = JSON.parse(cur);
+      let viewWidth = 100 / firstItem.width * 3 * fontSize * 1
+      viewWidth = Math.floor(viewWidth * Math.pow(10, 2)) / Math.pow(10, 2)
+
       acc.push(
         `
 .text${fontSize}_${letterSpacing}_${lineHeight} {
   font-size: ${fontSize}px;
   letter-spacing: ${letterSpacing}em;
   line-height: ${lineHeight};
+  @media only screen and (min-width: 481px) and (max-width: 766px), only screen and (max-width: 480px) {
+    font-size: ${viewWidth}vw;
+  }
 }
 `
       );
@@ -87,18 +96,27 @@ const myCommand = (selection, root) => {
     }, []);
 
     //extract all font data from an artboard and genarate html tag
-    const htmlArr = []
+    const htmlArr = [];
     Object.keys(groupedText).forEach((ele) => {
       const { fontSize, letterSpacing, lineHeight } = JSON.parse(ele);
       const tagArr = groupedText[ele].reduce((acc, cur) => {
         acc.push(
           `<p class="text${fontSize}_${letterSpacing}_${lineHeight}">${cur.text}</p>`
         );
-        return acc;
+        return Array.from(new Set(acc));
       }, []);
-      htmlArr.push(`\n${tagArr.join(',').replace(/,/g, '\n')}\n`);
+
+      // 出現回数に関しては重複をのぞいていない(親要素から一括指定が可能な場所がわかる)
+      // htmlArr.push(`\n${tagArr.join(',').replace(/,/g, '\n')}\n${groupedText[ele].length}ヶ所\n`);
+
+      // 出現回数に関しては重複をのぞいている
+      htmlArr.push(`\n${tagArr.join(',').replace(/,/g, '\n')}\n${tagArr.length}ヶ所\n`);
     });
-    clipboard.copyText(`${cssArr.join(',').replace(/,/g, '')}\n\n\n\n\n${htmlArr.join(',').replace(/,/g, '\n')}`);
+    clipboard.copyText(
+      `${cssArr.join(',').replace(/}\n,/g, '}\n').replace(/\.text.+_\d+\./g, "$&_").replace(/\._/g, "_")}\n\n\n\n\n${htmlArr
+        .join(',')
+        .replace(/,/g, '\n').replace(/text.+_\d+\./g, "$&_").replace(/\._/g, "_")}`
+    );
   } catch (e) {
     error(
       "First item of selection isn't 'Artboard'. ",
