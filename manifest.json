@@ -1,5 +1,5 @@
 {
-  "name" : "Get Node",
+  "name" : "Get Text",
   "host" : {
     "app" : "XD",
     "minVersion" : "21.0"
@@ -16,7 +16,7 @@
   } ],
   "uiEntryPoints" : [ {
     "type" : "menu",
-    "commandId" : "getNode"
+    "commandId" : "getText"
   } ],
   "version" : "0.0.1"
 }
